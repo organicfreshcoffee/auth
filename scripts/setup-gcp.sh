@@ -17,12 +17,13 @@ PROJECT_ID=""
 REGION="us-central1"
 AUTH_SERVICE_NAME="auth-server"
 SERVICE_ACCOUNT_NAME="github-actions-sa"
-REPOSITORY_NAME="organicfreshcoffee"
+REPOSITORY_NAME="organicfreshcoffee-auth-server"
 
 if [ "$1" = "staging" ] || [ "$1" = "--staging" ]; then
     echo -e "${BLUE}Setting up STAGING environment${NC}"
     AUTH_SERVICE_NAME="auth-server-staging"
     SERVICE_ACCOUNT_NAME="github-actions-staging-sa"
+    REPOSITORY_NAME="organicfreshcoffee-auth-server-staging"
 fi
 
 print_header() {
