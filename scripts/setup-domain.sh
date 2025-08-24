@@ -136,42 +136,30 @@ verify_domain_ownership() {
 create_domain_mapping() {
     print_step "Creating domain mappings for Cloud Run..."
     
-    # Create mapping for main domain (client)
+    # Create mapping for auth domain
     if gcloud beta run domain-mappings describe --domain=$MAIN_DOMAIN --region=$REGION &>/dev/null; then
         print_warning "Domain mapping for '$MAIN_DOMAIN' already exists"
     else
-        print_info "Creating domain mapping for '$MAIN_DOMAIN' -> client service..."
+        print_info "Creating domain mapping for '$MAIN_DOMAIN' -> auth service..."
         gcloud beta run domain-mappings create \
-            --service=$CLIENT_SERVICE_NAME \
+            --service=$AUTH_SERVICE_NAME \
             --domain=$MAIN_DOMAIN \
             --region=$REGION
-        print_info "Main domain mapping created successfully!"
-    fi
-    
-    # Create mapping for API subdomain (server)
-    if gcloud beta run domain-mappings describe --domain=$API_DOMAIN --region=$REGION &>/dev/null; then
-        print_warning "Domain mapping for '$API_DOMAIN' already exists"
-    else
-        print_info "Creating domain mapping for '$API_DOMAIN' -> server service..."
-        gcloud beta run domain-mappings create \
-            --service=$SERVER_SERVICE_NAME \
-            --domain=$API_DOMAIN \
-            --region=$REGION
-        print_info "API domain mapping created successfully!"
+        print_info "Auth domain mapping created successfully!"
     fi
 }
 
 get_dns_records() {
     print_step "Getting DNS records to configure..."
     
-    print_info "Fetching required DNS records for both domains..."
+    print_info "Fetching required DNS records for auth domain..."
     
     echo ""
     echo -e "${YELLOW}DNS Records to configure:${NC}"
     echo "========================="
     
     # Get DNS records for main domain
-    print_info "For $MAIN_DOMAIN (client):"
+    print_info "For $MAIN_DOMAIN (auth service):"
     MAIN_DNS_RECORDS=$(gcloud beta run domain-mappings describe --domain=$MAIN_DOMAIN --region=$REGION --format="value(status.resourceRecords[].name,status.resourceRecords[].type,status.resourceRecords[].rrdata)" 2>/dev/null || echo "")
     
     if [ -n "$MAIN_DNS_RECORDS" ]; then
@@ -186,28 +174,10 @@ get_dns_records() {
         done
     fi
     
-    echo ""
-    # Get DNS records for API domain
-    print_info "For $API_DOMAIN (server API):"
-    API_DNS_RECORDS=$(gcloud beta run domain-mappings describe --domain=$API_DOMAIN --region=$REGION --format="value(status.resourceRecords[].name,status.resourceRecords[].type,status.resourceRecords[].rrdata)" 2>/dev/null || echo "")
-    
-    if [ -n "$API_DNS_RECORDS" ]; then
-        echo "$API_DNS_RECORDS" | while IFS=$'\t' read -r name type rrdata; do
-            if [ -n "$type" ] && [ -n "$rrdata" ]; then
-                echo "Name: ${name:-@}"
-                echo "Type: $type"
-                echo "Value: $rrdata"
-                echo "TTL: 300"
-                echo "---"
-            fi
-        done
-    fi
-    
-    if [ -z "$MAIN_DNS_RECORDS" ] && [ -z "$API_DNS_RECORDS" ]; then
+    if [ -z "$MAIN_DNS_RECORDS" ]; then
         print_warning "Could not retrieve DNS records automatically"
         print_info "You can get them manually with:"
         echo "gcloud beta run domain-mappings describe --domain=$MAIN_DOMAIN --region=$REGION"
-        echo "gcloud beta run domain-mappings describe --domain=$API_DOMAIN --region=$REGION"
     fi
 }
 
@@ -216,32 +186,28 @@ configure_google_domains() {
     
     echo ""
     if [[ "$MAIN_DOMAIN" == *"staging"* ]]; then
-        echo -e "${YELLOW}To configure DNS for STAGING domains:${NC}"
+        echo -e "${YELLOW}To configure DNS for STAGING domain:${NC}"
         echo "===================================="
         echo "1. Go to your DNS provider (Google Domains, Cloudflare, etc.)"
-        echo "2. Find your domain 'organicfreshcoffee.com'"
+        echo "2. Find your domain '$STAGING_DOMAIN'"
         echo "3. Go to DNS management"
-        echo "4. Add the DNS records shown above:"
-        echo "   - For staging.organicfreshcoffee.com (staging client) - A records"
-        echo "   - For staging-api.organicfreshcoffee.com (staging API) - CNAME record"
+        echo "4. Add the DNS records shown above for $STAGING_DOMAIN"
         echo "5. Set TTL to 300 seconds for faster propagation during testing"
         echo "6. Save the changes"
         echo ""
-        echo -e "${BLUE}Note:${NC} These are STAGING subdomains of your main domain"
+        echo -e "${BLUE}Note:${NC} This is the STAGING domain for your auth microservice"
     else
         echo -e "${YELLOW}To configure DNS in Google Domains:${NC}"
         echo "===================================="
         echo "1. Go to https://domains.google.com"
-        echo "2. Find your domain 'organicfreshcoffee.com'"
+        echo "2. Find your domain '$MAIN_DOMAIN'"
         echo "3. Click on it and go to 'DNS' tab"
         echo "4. Scroll down to 'Custom records'"
-        echo "5. Add the DNS records shown above:"
-        echo "   - For organicfreshcoffee.com (client app) - A records"
-        echo "   - For api.organicfreshcoffee.com (server API) - CNAME record"
+        echo "5. Add the DNS records shown above for $MAIN_DOMAIN"
         echo "6. Set TTL to 300 seconds for faster propagation during testing"
         echo "7. Save the changes"
         echo ""
-        echo -e "${BLUE}Note:${NC} These are PRODUCTION domains"
+        echo -e "${BLUE}Note:${NC} This is the PRODUCTION domain for your auth microservice"
     fi
     echo -e "${BLUE}DNS propagation info:${NC} Can take up to 48 hours, but usually takes 5-10 minutes"
     echo -e "${BLUE}Tip:${NC} You can use 'dig organicfreshcoffee.com' to check DNS propagation"
@@ -260,30 +226,22 @@ test_domain_setup() {
     
     echo ""
     print_info "Once DNS propagation is complete, test your setup:"
-    echo "1. Client app: https://$MAIN_DOMAIN/"
-    echo "2. Server health: https://$API_DOMAIN/health"
-    echo "3. API endpoints: https://$API_DOMAIN/api/..."
+    echo "1. Auth service: https://$MAIN_DOMAIN/health"
+    echo "2. API endpoints: https://$MAIN_DOMAIN/api/..."
     echo ""
     print_info "You can check DNS propagation with:"
     echo "nslookup $MAIN_DOMAIN"
-    echo "nslookup $API_DOMAIN"
     echo "dig $MAIN_DOMAIN"
-    echo "dig $API_DOMAIN"
 }
 
 update_cors_configuration() {
     print_step "CORS configuration update..."
     
     if [[ "$MAIN_DOMAIN" == *"staging"* ]]; then
-        print_info "✅ CORS is automatically configured for staging domains:"
-        print_info "  - staging.organicfreshcoffee.com"
-        print_info "  - staging-api.organicfreshcoffee.com"
+        print_info "✅ CORS is automatically configured for staging domain: $STAGING_DOMAIN"
         print_info "  - Cloud Run URLs (as fallback)"
     else
-        print_info "✅ CORS is automatically configured for production domains:"
-        print_info "  - organicfreshcoffee.com"
-        print_info "  - www.organicfreshcoffee.com"
-        print_info "  - api.organicfreshcoffee.com"
+        print_info "✅ CORS is automatically configured for production domain: $MAIN_DOMAIN"
     fi
     
     print_info "The server will log allowed origins on startup for verification."
@@ -295,8 +253,7 @@ print_next_steps() {
     echo ""
     echo -e "${GREEN}Summary:${NC}"
     echo "========"
-    echo "✅ Domain mapping created for: $MAIN_DOMAIN (client)"
-    echo "✅ Domain mapping created for: $API_DOMAIN (server)"
+    echo "✅ Domain mapping created for: $MAIN_DOMAIN (auth service)"
     echo "✅ DNS records retrieved"
     echo "✅ Configuration instructions provided"
     echo ""
@@ -304,32 +261,25 @@ print_next_steps() {
     echo "========================="
     echo "1. Configure DNS records in Google Domains (instructions above)"
     echo "2. Wait for DNS propagation (5-10 minutes usually)"
-    echo "3. Test the domains:"
-    echo "   - Client: https://$MAIN_DOMAIN/"
-    echo "   - Server: https://$API_DOMAIN/health"
-    echo "4. Update your GitHub secrets:"
-    echo "   - CLIENT_URL: https://$MAIN_DOMAIN"
-    echo "   - SERVER_URL: https://$API_DOMAIN"
-    echo "5. Update your Next.js client to use the API domain"
-    echo "6. Redeploy after updating configuration"
+    echo "3. Test the domain:"
+    echo "   - Auth Service Health: https://$MAIN_DOMAIN/health"
+    echo "   - API: https://$MAIN_DOMAIN/api/..."
+    echo "4. Update your GitHub secrets if needed"
+    echo "5. Redeploy after updating configuration"
     echo ""
     echo -e "${BLUE}Useful commands:${NC}"
     echo "================"
     echo "# Check domain mapping status"
     echo "gcloud beta run domain-mappings describe $MAIN_DOMAIN --region=$REGION"
-    echo "gcloud beta run domain-mappings describe $API_DOMAIN --region=$REGION"
     echo ""
     echo "# Check DNS resolution"
     echo "nslookup $MAIN_DOMAIN"
-    echo "nslookup $API_DOMAIN"
     echo ""
     echo "# Test SSL certificates (after DNS propagation)"
-    echo "curl -I https://$MAIN_DOMAIN/"
-    echo "curl -I https://$API_DOMAIN/health"
+    echo "curl -I https://$MAIN_DOMAIN/health"
     echo ""
-    echo -e "${GREEN}🎉 Your services will be available at:${NC}"
-    echo -e "${GREEN}   Client: https://$MAIN_DOMAIN${NC}"
-    echo -e "${GREEN}   API:    https://$API_DOMAIN${NC}"
+    echo -e "${GREEN}🎉 Your auth service will be available at:${NC}"
+    echo -e "${GREEN}   Auth: https://$MAIN_DOMAIN${NC}"
 }
 
 # Main execution
