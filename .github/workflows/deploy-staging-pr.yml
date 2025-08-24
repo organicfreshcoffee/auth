@@ -5,164 +5,46 @@ on:
     types: [labeled]
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  AUTH_SERVICE_NAME: auth-server-staging
   REGION: us-central1
   REGISTRY: us-central1-docker.pkg.dev
-  REPOSITORY: organicfreshcoffee
 
 jobs:
-  check-label:
-    name: Check for Deploy Label
+  deploy-pr-staging:
+    name: Deploy PR to Staging
     runs-on: ubuntu-latest
-    outputs:
-      should-deploy: ${{ steps.check.outputs.should-deploy }}
-    test-auth:
-      name: Test Auth Microservice
-      runs-on: ubuntu-latest
-      needs: check-label
-      if: needs.check-label.outputs.should-deploy == 'true'
-      steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: './package-lock.json'
-      - name: Install dependencies
-        run: npm ci
-      - name: Run linter
-        run: npm run lint
-      - name: Build TypeScript
-        run: npm run build
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: './client/package-lock.json'
-        deploy-auth-staging:
-          name: Deploy Auth Microservice to Staging
-          runs-on: ubuntu-latest
-          needs: [check-label, test-auth]
-          if: needs.check-label.outputs.should-deploy == 'true'
-          permissions:
-            contents: read
-            id-token: write
-            pull-requests: write
-          steps:
-          - name: Checkout code
-            uses: actions/checkout@v4
-          - name: Authenticate to Google Cloud
-            uses: google-github-actions/auth@v2
-            with:
-              workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER_STAGING }}
-              service_account: ${{ secrets.SERVICE_ACCOUNT_EMAIL_STAGING }}
-          - name: Configure Docker for Artifact Registry
-            run: gcloud auth configure-docker ${{ env.REGISTRY }}
-          - name: Build Auth Docker image for Staging
-            run: |
-              docker build -f Dockerfile.prod \
-                -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.AUTH_SERVICE_NAME }}:pr-${{ github.event.number }} \
-                -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.AUTH_SERVICE_NAME }}:staging-latest \
-                .
-          - name: Push Auth Docker image for Staging
-            run: |
-              docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.AUTH_SERVICE_NAME }}:pr-${{ github.event.number }}
-              docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.AUTH_SERVICE_NAME }}:staging-latest
-          - name: Deploy Auth to Staging
-            run: |
-              gcloud run deploy ${{ env.AUTH_SERVICE_NAME }} \
-                --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.AUTH_SERVICE_NAME }}:pr-${{ github.event.number }} \
-                --region ${{ env.REGION }} \
-                --platform managed \
-                --allow-unauthenticated \
-                --port 3001 \
-                --memory 1Gi \
-                --cpu 1 \
-                --min-instances 0 \
-                --max-instances 10 \
-                --concurrency 1000 \
-                --timeout 3600 \
-                --set-env-vars NODE_ENV=staging,GOOGLE_CLOUD_PROJECT=${{ secrets.GCP_PROJECT_ID }} \
-                --tag pr-${{ github.event.number }}
-          - name: Get Staging Auth URL
-            id: get-auth-url
-            run: |
-              AUTH_URL=$(gcloud run services describe ${{ env.AUTH_SERVICE_NAME }} --region ${{ env.REGION }} --format 'value(status.url)')
-              echo "AUTH_URL=$AUTH_URL" >> $GITHUB_OUTPUT
-              echo "🚀 Staging Auth deployed successfully!"
-              echo "🔗 Staging Auth URL: $AUTH_URL"
-              echo "❤️  Staging Health Check: $AUTH_URL/health"
-          - name: Comment PR with Auth URL
-            uses: actions/github-script@v7
-            with:
-              script: |
-                github.rest.issues.createComment({
-                  issue_number: context.issue.number,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  body: `🚀 **Staging Auth Deployed!**\n\n🔗 **Cloud Run URL:** ${{ steps.get-auth-url.outputs.AUTH_URL }}\n❤️ **Health Check:** ${{ steps.get-auth-url.outputs.AUTH_URL }}/health\n\n🎉 **Custom Domain:** https://staging-auth.organicfreshcoffee.com\n❤️ **Custom Health Check:** https://staging-auth.organicfreshcoffee.com/health\n\n📦 **Image Tag:** pr-${{ github.event.number }}\n\nThe staging auth microservice is ready for testing at either URL above.`
-                })
-          -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.CLIENT_SERVICE_NAME }}:pr-${{ github.event.number }} \
-          -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.CLIENT_SERVICE_NAME }}:staging-latest \
-          ./client
-          
-    - name: Push Client Docker image for Staging
-      run: |
-        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.CLIENT_SERVICE_NAME }}:pr-${{ github.event.number }}
-        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.CLIENT_SERVICE_NAME }}:staging-latest
-        
-    - name: Deploy Client to Staging
-      run: |
-        gcloud run deploy ${{ env.CLIENT_SERVICE_NAME }} \
-          --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.CLIENT_SERVICE_NAME }}:pr-${{ github.event.number }} \
-          --region ${{ env.REGION }} \
-          --platform managed \
-          --allow-unauthenticated \
-          --port 3000 \
-          --memory 1Gi \
-          --cpu 1 \
-          --min-instances 0 \
-          --max-instances 10 \
-          --concurrency 1000 \
-          --timeout 300 \
-          --set-env-vars NODE_ENV=staging \
-          --tag pr-${{ github.event.number }}
-          
-    - name: Get Staging Client URL
-      id: get-client-url
-      run: |
-        CLIENT_URL=$(gcloud run services describe ${{ env.CLIENT_SERVICE_NAME }} --region ${{ env.REGION }} --format 'value(status.url)')
-        echo "CLIENT_URL=$CLIENT_URL" >> $GITHUB_OUTPUT
-        echo "🚀 Staging Client deployed successfully!"
-        echo "🌐 Staging Client URL: $CLIENT_URL"
-        
-    - name: Comment PR with Client URL
-      uses: actions/github-script@v7
-      with:
-        script: |
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: `🚀 **Staging Client Deployed!**\n\n🌐 **Cloud Run URL:** ${{ steps.get-client-url.outputs.CLIENT_URL }}\n\n🎉 **Custom Domain:** https://staging.organicfreshcoffee.com\n\n📦 **Image Tag:** pr-${{ github.event.number }}\n\nYou can test this PR deployment at either URL above.`
-          })
-
-  deploy-server-staging:
-    name: Deploy Server to Staging
-    runs-on: ubuntu-latest
-    needs: [check-label, test-server]
-    if: needs.check-label.outputs.should-deploy == 'true'
+    if: contains(github.event.label.name, 'deploy')
+    
+    environment: staging
     
     permissions:
       contents: read
       id-token: write
       pull-requests: write
     
+    env:
+      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      SERVICE_NAME: organicfreshcoffee-auth-server-staging
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run linter
+      run: npm run lint
+      
+    - name: Build TypeScript
+      run: npm run build
       
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
@@ -173,51 +55,55 @@ jobs:
     - name: Configure Docker for Artifact Registry
       run: gcloud auth configure-docker ${{ env.REGISTRY }}
       
-    - name: Build Server Docker image for Staging
+    - name: Build Docker image
       run: |
-        docker build -f server/Dockerfile.prod \
-          -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVER_SERVICE_NAME }}:pr-${{ github.event.number }} \
-          -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVER_SERVICE_NAME }}:staging-latest \
-          ./server
+        docker build -f Dockerfile.prod \
+          -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/auth-server-staging/${{ env.SERVICE_NAME }}:pr-${{ github.event.pull_request.number }} \
+          -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/auth-server-staging/${{ env.SERVICE_NAME }}:pr-latest \
+          .
           
-    - name: Push Server Docker image for Staging
+    - name: Push Docker image
       run: |
-        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVER_SERVICE_NAME }}:pr-${{ github.event.number }}
-        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVER_SERVICE_NAME }}:staging-latest
+        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/auth-server-staging/${{ env.SERVICE_NAME }}:pr-${{ github.event.pull_request.number }}
+        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/auth-server-staging/${{ env.SERVICE_NAME }}:pr-latest
         
-    - name: Deploy Server to Staging
+    - name: Deploy to Cloud Run (Staging)
       run: |
-        gcloud run deploy ${{ env.SERVER_SERVICE_NAME }} \
-          --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVER_SERVICE_NAME }}:pr-${{ github.event.number }} \
+        gcloud run deploy ${{ env.SERVICE_NAME }} \
+          --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/auth-server-staging/${{ env.SERVICE_NAME }}:pr-${{ github.event.pull_request.number }} \
           --region ${{ env.REGION }} \
           --platform managed \
           --allow-unauthenticated \
-          --port 3001 \
+          --port 3002 \
           --memory 1Gi \
           --cpu 1 \
           --min-instances 0 \
           --max-instances 10 \
           --concurrency 1000 \
           --timeout 3600 \
-          --set-env-vars NODE_ENV=staging,MONGODB_URI=${{ secrets.MONGODB_URI_STAGING }},CLIENT_URL=${{ secrets.CLIENT_URL_STAGING }},GOOGLE_CLOUD_PROJECT=${{ secrets.GCP_PROJECT_ID }} \
-          --tag pr-${{ github.event.number }}
-          
-    - name: Get Staging Server URL
-      id: get-server-url
+          --set-env-vars NODE_ENV=staging
+
+    - name: Get Cloud Run URL and comment on PR
       run: |
-        SERVER_URL=$(gcloud run services describe ${{ env.SERVER_SERVICE_NAME }} --region ${{ env.REGION }} --format 'value(status.url)')
-        echo "SERVER_URL=$SERVER_URL" >> $GITHUB_OUTPUT
-        echo "🚀 Staging Server deployed successfully!"
-        echo "🔗 Staging Server URL: $SERVER_URL"
-        echo "❤️  Staging Health Check: $SERVER_URL/health"
+        SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} --region ${{ env.REGION }} --format 'value(status.url)')
         
-    - name: Comment PR with Server URL
-      uses: actions/github-script@v7
-      with:
-        script: |
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: `🚀 **Staging Server Deployed!**\n\n🔗 **Cloud Run URL:** ${{ steps.get-server-url.outputs.SERVER_URL }}\n❤️ **Health Check:** ${{ steps.get-server-url.outputs.SERVER_URL }}/health\n\n🎉 **Custom Domain:** https://staging-api.organicfreshcoffee.com\n❤️ **Custom Health Check:** https://staging-api.organicfreshcoffee.com/health\n\n📦 **Image Tag:** pr-${{ github.event.number }}\n\nThe staging API server is ready for testing at either URL above.`
-          })
+        # Create comment body
+        COMMENT_BODY="🚀 **PR #${{ github.event.pull_request.number }} deployed to staging!**
+
+        **Deployment Details:**
+        - 📱 **Service URL:** $SERVICE_URL
+        - 🔌 **WebSocket URL:** ${SERVICE_URL/https:/wss:}/game
+        - ❤️ **Health Check:** $SERVICE_URL/health
+        - 🌐 **Custom Domain:** https://staging-auth.organicfreshcoffee.com (if DNS is configured)
+        
+        **Testing:**
+        - Make sure to test your changes thoroughly
+        - Check HTTP endpoints
+        
+        **Branch:** \`${{ github.event.pull_request.head.ref }}\`
+        **Commit:** \`${{ github.event.pull_request.head.sha }}\`"
+        
+        # Post comment to PR using GitHub CLI
+        echo "$COMMENT_BODY" | gh pr comment ${{ github.event.pull_request.number }} --body-file -
+      env:
+        GH_TOKEN: ${{ github.token }}
