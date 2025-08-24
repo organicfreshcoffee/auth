@@ -8,39 +8,29 @@ on:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  CLIENT_SERVICE_NAME: organicfreshcoffee-client
-  SERVER_SERVICE_NAME: organicfreshcoffee-server
+  AUTH_SERVICE_NAME: auth-server
   REGION: us-central1
   REGISTRY: us-central1-docker.pkg.dev
   REPOSITORY: organicfreshcoffee
 
 jobs:
-  test-client:
-    name: Test Client
+  test-auth:
+    name: Test Auth Microservice
     runs-on: ubuntu-latest
-    
-    defaults:
-      run:
-        working-directory: ./client
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: './client/package-lock.json'
-        
+        cache-dependency-path: './package-lock.json'
     - name: Install dependencies
       run: npm ci
-      
     - name: Run linter
       run: npm run lint
-      
-    - name: Build Next.js app
+    - name: Build TypeScript
       run: npm run build
 
   test-server:
@@ -66,58 +56,55 @@ jobs:
       run: npm ci
       
     - name: Build TypeScript
-      run: npm run build
-
-  deploy-client-staging:
-    name: Deploy Client to Staging
-    runs-on: ubuntu-latest
-    needs: test-client
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
-    permissions:
-      contents: read
-      id-token: write
-    
-    env:
-      CLIENT_SERVICE_NAME: organicfreshcoffee-client-staging
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Authenticate to Google Cloud
-      uses: google-github-actions/auth@v2
-      with:
-        workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER_STAGING }}
-        service_account: ${{ secrets.SERVICE_ACCOUNT_EMAIL_STAGING }}
-        
-    - name: Configure Docker for Artifact Registry
-      run: gcloud auth configure-docker ${{ env.REGISTRY }}
-      
-    - name: Build Client Docker image for Staging
-      run: |
-        docker build -f client/Dockerfile.prod \
-          --build-arg SERVER_URL=${{ secrets.SERVER_URL_STAGING }} \
-          --build-arg GOOGLE_CLOUD_PROJECT=${{ secrets.GCP_PROJECT_ID }} \
-          -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.CLIENT_SERVICE_NAME }}:${{ github.sha }} \
-          -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.CLIENT_SERVICE_NAME }}:latest \
-          ./client
-          
-    - name: Push Client Docker image for Staging
-      run: |
-        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.CLIENT_SERVICE_NAME }}:${{ github.sha }}
-        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.CLIENT_SERVICE_NAME }}:latest
-        
-    - name: Deploy Client to Staging
-      run: |
-        gcloud run deploy ${{ env.CLIENT_SERVICE_NAME }} \
-          --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.CLIENT_SERVICE_NAME }}:${{ github.sha }} \
-          --region ${{ env.REGION }} \
-          --platform managed \
-          --allow-unauthenticated \
-          --port 3000 \
-          --memory 1Gi \
-          --cpu 1 \
+      deploy-auth:
+        name: Deploy Auth Microservice to Production
+        runs-on: ubuntu-latest
+        needs: test-auth
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        permissions:
+          contents: read
+          id-token: write
+        steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
+        - name: Authenticate to Google Cloud
+          uses: google-github-actions/auth@v2
+          with:
+            workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+            service_account: ${{ secrets.SERVICE_ACCOUNT_EMAIL }}
+        - name: Configure Docker for Artifact Registry
+          run: gcloud auth configure-docker ${{ env.REGISTRY }}
+        - name: Build Auth Docker image
+          run: |
+            docker build -f Dockerfile.prod \
+              -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.AUTH_SERVICE_NAME }}:${{ github.sha }} \
+              -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.AUTH_SERVICE_NAME }}:latest \
+              .
+        - name: Push Auth Docker image
+          run: |
+            docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.AUTH_SERVICE_NAME }}:${{ github.sha }}
+            docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.AUTH_SERVICE_NAME }}:latest
+        - name: Deploy Auth to Cloud Run
+          run: |
+            gcloud run deploy ${{ env.AUTH_SERVICE_NAME }} \
+              --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.AUTH_SERVICE_NAME }}:${{ github.sha }} \
+              --region ${{ env.REGION }} \
+              --platform managed \
+              --allow-unauthenticated \
+              --port 3001 \
+              --memory 1Gi \
+              --cpu 1 \
+              --min-instances 0 \
+              --max-instances 10 \
+              --concurrency 1000 \
+              --timeout 3600 \
+              --set-env-vars NODE_ENV=production,GOOGLE_CLOUD_PROJECT=${{ secrets.GCP_PROJECT_ID }}
+        - name: Get Auth URL
+          run: |
+            AUTH_URL=$(gcloud run services describe ${{ env.AUTH_SERVICE_NAME }} --region ${{ env.REGION }} --format 'value(status.url)')
+            echo "🚀 Production Auth deployed successfully!"
+            echo "🔗 Production Auth URL: $AUTH_URL"
+            echo "❤️  Production Health Check: $AUTH_URL/health"
           --min-instances 0 \
           --max-instances 10 \
           --concurrency 1000 \

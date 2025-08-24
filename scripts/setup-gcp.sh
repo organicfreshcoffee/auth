@@ -15,23 +15,19 @@ NC='\033[0m' # No Color
 # Configuration
 PROJECT_ID=""
 REGION="us-central1"
-CLIENT_SERVICE_NAME="organicfreshcoffee-client"
-SERVER_SERVICE_NAME="organicfreshcoffee-server"
+AUTH_SERVICE_NAME="auth-server"
 SERVICE_ACCOUNT_NAME="github-actions-sa"
 REPOSITORY_NAME="organicfreshcoffee"
 
-# Check if staging environment is requested
 if [ "$1" = "staging" ] || [ "$1" = "--staging" ]; then
     echo -e "${BLUE}Setting up STAGING environment${NC}"
-    CLIENT_SERVICE_NAME="organicfreshcoffee-client-staging"
-    SERVER_SERVICE_NAME="organicfreshcoffee-server-staging"
+    AUTH_SERVICE_NAME="auth-server-staging"
     SERVICE_ACCOUNT_NAME="github-actions-staging-sa"
 fi
 
 print_header() {
     echo -e "${BLUE}======================================${NC}"
-    echo -e "${BLUE}  GCP Deployment Setup for Landing App${NC}"
-    echo -e "${BLUE}  Client + Server Architecture${NC}"
+    echo -e "${BLUE}  GCP Deployment Setup for Auth Microservice${NC}"
     if [ "$1" = "staging" ] || [ "$1" = "--staging" ]; then
         echo -e "${BLUE}       STAGING ENVIRONMENT${NC}"
     else

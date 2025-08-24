@@ -15,18 +15,14 @@ NC='\033[0m' # No Color
 # Configuration
 PROJECT_ID=""
 REGION="us-central1"
-CLIENT_SERVICE_NAME="organicfreshcoffee-client"
-SERVER_SERVICE_NAME="organicfreshcoffee-server"
-MAIN_DOMAIN="organicfreshcoffee.com"
-API_DOMAIN="api.organicfreshcoffee.com"
+AUTH_SERVICE_NAME="auth-server"
+MAIN_DOMAIN="auth.organicfreshcoffee.com"
+STAGING_DOMAIN="staging-auth.organicfreshcoffee.com"
 
-# Check if staging environment is requested
 if [ "$1" = "staging" ] || [ "$1" = "--staging" ]; then
     echo -e "${BLUE}Setting up STAGING environment${NC}"
-    CLIENT_SERVICE_NAME="organicfreshcoffee-client-staging"
-    SERVER_SERVICE_NAME="organicfreshcoffee-server-staging"
-    MAIN_DOMAIN="staging.organicfreshcoffee.com"
-    API_DOMAIN="staging-api.organicfreshcoffee.com"
+    AUTH_SERVICE_NAME="auth-server-staging"
+    MAIN_DOMAIN="$STAGING_DOMAIN"
 fi
 
 print_header() {
@@ -91,23 +87,13 @@ verify_service_exists() {
     
     SERVICES_EXIST=true
     
-    # Check client service
-    if gcloud run services describe $CLIENT_SERVICE_NAME --region=$REGION &>/dev/null; then
-        print_info "Client service '$CLIENT_SERVICE_NAME' found in region '$REGION'"
-        CLIENT_URL=$(gcloud run services describe $CLIENT_SERVICE_NAME --region=$REGION --format='value(status.url)')
-        print_info "Current client URL: $CLIENT_URL"
+    # Check auth service
+    if gcloud run services describe $AUTH_SERVICE_NAME --region=$REGION &>/dev/null; then
+        print_info "Auth service '$AUTH_SERVICE_NAME' found in region '$REGION'"
+        AUTH_URL=$(gcloud run services describe $AUTH_SERVICE_NAME --region=$REGION --format='value(status.url)')
+        print_info "Current auth URL: $AUTH_URL"
     else
-        print_warning "Client service '$CLIENT_SERVICE_NAME' not found in region '$REGION'"
-        SERVICES_EXIST=false
-    fi
-    
-    # Check server service
-    if gcloud run services describe $SERVER_SERVICE_NAME --region=$REGION &>/dev/null; then
-        print_info "Server service '$SERVER_SERVICE_NAME' found in region '$REGION'"
-        SERVER_URL=$(gcloud run services describe $SERVER_SERVICE_NAME --region=$REGION --format='value(status.url)')
-        print_info "Current server URL: $SERVER_URL"
-    else
-        print_warning "Server service '$SERVER_SERVICE_NAME' not found in region '$REGION'"
+        print_warning "Auth service '$AUTH_SERVICE_NAME' not found in region '$REGION'"
         SERVICES_EXIST=false
     fi
     
@@ -129,22 +115,16 @@ verify_domain_ownership() {
     print_step "Checking domain ownership..."
     
     if [ "$1" = "staging" ] || [ "$1" = "--staging" ]; then
-        print_info "Make sure you own the staging domains:"
-        print_info "  - staging.organicfreshcoffee.com"
-        print_info "  - staging-api.organicfreshcoffee.com"
-        print_info "You should have DNS records configured for these staging subdomains"
-        
-        read -p "Do you have DNS control for staging.organicfreshcoffee.com? (y/n): " -n 1 -r
+        print_info "Make sure you own the staging domain: $STAGING_DOMAIN"
+        read -p "Do you have DNS control for $STAGING_DOMAIN? (y/n): " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            print_error "You must have DNS control for the staging domains to continue"
+            print_error "You must have DNS control for the staging domain to continue"
             exit 1
         fi
     else
-        print_info "Make sure you own the domain 'organicfreshcoffee.com'"
-        print_info "You should have purchased 'organicfreshcoffee.com' through Google Domains or another registrar"
-        
-        read -p "Do you own the domain 'organicfreshcoffee.com'? (y/n): " -n 1 -r
+        print_info "Make sure you own the domain '$MAIN_DOMAIN'"
+        read -p "Do you own the domain '$MAIN_DOMAIN'? (y/n): " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             print_error "You must own the domain to continue"

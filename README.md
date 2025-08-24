@@ -1,16 +1,13 @@
-# User Authentication with Firebase
+# Organic Fresh Coffee Authentication Microservice
 
-A full-stack web application built with Next.js, Express.js, Firebase Auth, and MongoDB. This project demonstrates a complete authentication flow with user login tracking.
+This repository contains the authentication microservice for Organic Fresh Coffee, built with Express.js and Firebase Auth. It is designed to run as a standalone service and does not require MongoDB or a client application.
 
 ## 🏗️ Architecture
 
-- **Frontend**: Next.js 14 with TypeScript
-- **Backend**: Express.js with TypeScript
+- **Service**: Express.js with TypeScript
 - **Authentication**: Firebase Auth
-- **Database**: MongoDB
-- **Infrastructure**: Docker Compose for local development
 - **Secrets Management**: Google Cloud Secret Manager
-- **Cloud**: Google Cloud Platform (GCP) with Secret Manager
+- **Cloud**: Google Cloud Platform (GCP)
 
 ## 📋 Prerequisites
 
@@ -28,15 +25,15 @@ Before you begin, ensure you have the following installed:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/organicfreshcoffee/landing.git
-cd landing
+git clone https://github.com/organicfreshcoffee/auth.git
+cd auth
 ```
 
 ### 2. Set Up Firebase
 
 #### Create a Firebase Project
 1. Go to the [Firebase Console](https://console.firebase.google.com/)
-2. Click "Create a project" or "Add project"  
+2. Click "Create a project" or "Add project"
 3. Follow the setup wizard to create your project
 4. Enable Authentication:
    - Go to **Authentication** > **Sign-in method**
@@ -44,10 +41,68 @@ cd landing
 
 #### Generate Firebase Credentials
 
-**For the Web App (Client-side):**
 1. In your Firebase project, go to **Project Settings** (gear icon)
-2. Scroll down to "Your apps" and click **Web** icon (`</>`)
-3. Register your app with a nickname (e.g., "Landing Page")
+2. Go to **Service accounts** tab
+3. Click **Generate new private key** for Node.js Admin SDK
+4. Download the JSON file and store it securely
+5. Upload the credentials to GCP Secret Manager as `firebase-service-account`
+
+## 🔒 Environment Variables
+
+All sensitive credentials (Firebase service account) are stored in GCP Secret Manager. See `.env.example` for required variables:
+
+```env
+GOOGLE_CLOUD_PROJECT=your-gcp-project-id
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/service-account-key.json
+NODE_ENV=development
+PORT=3001
+AUTH_SERVICE_URL=http://localhost:3001
+```
+
+## 🐳 Local Development
+
+Start the authentication microservice locally with Docker Compose:
+
+```bash
+./setup.sh
+./start.sh
+```
+
+The service will be available at `http://localhost:3001`.
+
+## ☁️ Deployment
+
+This service is deployed to Google Cloud Run at:
+
+- **Production:** `auth.organicfreshcoffee.com`
+- **Staging:** `staging-auth.organicfreshcoffee.com`
+
+See `scripts/setup-gcp.sh` and `scripts/setup-domain.sh` for GCP and domain setup.
+
+## 🔑 Authentication Flow
+
+This microservice exposes endpoints for user authentication using Firebase Auth. All requests are validated against Firebase tokens. See `src/routes/auth.ts` for available endpoints.
+
+## 🛡️ Security
+
+- All secrets are managed via GCP Secret Manager
+- No database is required for authentication
+- Only Firebase Auth is used for user management
+
+## 📝 Additional Documentation
+
+See the `docs/` folder for:
+- `GCP_DEPLOYMENT.md`: GCP setup and deployment
+- `STAGING_SETUP.md`: Staging environment setup
+- `ADMIN_SYSTEM.md`: Admin system details
+
+## 🧑‍💻 Contributing
+
+Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
+
+## 📄 License
+
+This project is licensed under the MIT License.
 4. Copy the Firebase config object - you'll need these values for Secret Manager
 
 **For Admin SDK (Server-side):**

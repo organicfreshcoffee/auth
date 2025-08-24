@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Setup script for Organic Fresh Coffee Landing Page
+# Setup script for Organic Fresh Coffee Auth Microservice
 set -e
 
-echo "🚀 Setting up Organic Fresh Coffee Landing Page..."
+echo "🚀 Setting up Organic Fresh Coffee Auth Microservice..."
 echo ""
 
 # Check if required tools are installed

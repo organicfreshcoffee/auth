@@ -1,61 +1,25 @@
 version: '3.8'
 
 services:
-  mongodb:
-    image: mongo:7
-    container_name: landing-mongodb
-    restart: always
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password
-      MONGO_INITDB_DATABASE: landing
-    volumes:
-      - mongodb_data:/data/db
-      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
-    networks:
-      - landing-network
-
-  server:
+  auth:
     build:
-      context: ./server
+      context: ./
       dockerfile: Dockerfile
-    container_name: landing-server
+    container_name: auth-server
     restart: always
     ports:
       - "3001:3001"
     environment:
       - NODE_ENV=development
       - PORT=3001
-      - MONGODB_URI=mongodb://admin:password@mongodb:27017/landing?authSource=admin
       - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}
       - GOOGLE_APPLICATION_CREDENTIALS=/app/service-account-key.json
     volumes:
-      - ./server:/app
+      - ./src:/app/src
       - /app/node_modules
       - ${GOOGLE_APPLICATION_CREDENTIALS}:/app/service-account-key.json
-    depends_on:
-      - mongodb
     networks:
-      - landing-network
-    command: npm run dev
-
-  client:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
-    container_name: landing-client
-    restart: always
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://localhost:3001
-      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}
-    volumes:
-      - ./client:/app
-      - /app/node_modules
+      - auth-network
       - /app/.next
     depends_on:
       - server
@@ -64,8 +28,6 @@ services:
     command: npm run dev
 
 volumes:
-  mongodb_data:
-
 networks:
-  landing-network:
+  auth-network:
     driver: bridge
