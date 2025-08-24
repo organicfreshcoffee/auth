@@ -64,8 +64,8 @@ jobs:
           
     - name: Push Docker image
       run: |
-  docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/organicfreshcoffee/${{ env.SERVICE_NAME }}:pr-${{ github.event.pull_request.number }}
-  docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/organicfreshcoffee/${{ env.SERVICE_NAME }}:pr-latest
+        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/organicfreshcoffee/${{ env.SERVICE_NAME }}:pr-${{ github.event.pull_request.number }}
+        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/organicfreshcoffee/${{ env.SERVICE_NAME }}:pr-latest
         
     - name: Deploy to Cloud Run (Staging)
       run: |
