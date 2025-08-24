@@ -1,9 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { initializeFirebaseAdmin } from './config/firebase';
-import authRoutes from './routes/auth';
-import { errorHandler } from './middleware/errorHandler';
+import { initializeFirebaseAdmin } from './config/firebase.js';
+import authRoutes from './routes/auth.js';
+import { errorHandler } from './middleware/errorHandler.js';
 
 dotenv.config();
 
