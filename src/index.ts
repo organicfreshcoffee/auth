@@ -2,10 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { initializeFirebaseAdmin } from './config/firebase';
-import { connectToDatabase } from './config/database';
 import authRoutes from './routes/auth';
-import adminRoutes from './routes/admin';
-import dungeonRoutes from './routes/dungeon';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -76,20 +73,7 @@ async function initializeServices() {
       }
     }
     
-    // Connect to Database
-    console.log('Connecting to database...');
-    try {
-      await connectToDatabase();
-    } catch (dbError) {
-      console.error('Database connection failed:', dbError);
-      console.warn('Server will start without database functionality');
-      // Don't exit - allow server to start without database in development
-      if (process.env.NODE_ENV === 'production') {
-        throw dbError;
-      }
-    }
-    
-    console.log('Service initialization completed');
+  console.log('Service initialization completed');
   } catch (error) {
     console.error('Failed to initialize services:', error);
     process.exit(1);
@@ -101,8 +85,6 @@ async function setupServer() {
   await initializeServices();
   
   app.use('/api', authRoutes);
-  app.use('/api/admin', adminRoutes);
-  app.use('/api/dungeon', dungeonRoutes);
 
   // Health check endpoint
   app.get('/health', (req, res) => {
