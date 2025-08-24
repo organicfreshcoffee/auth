@@ -75,19 +75,19 @@ jobs:
     - name: Build Docker image
       run: |
         docker build -f Dockerfile.prod \
-          -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/auth-server-staging/${{ env.SERVICE_NAME }}:${{ github.sha }} \
-          -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/auth-server-staging/${{ env.SERVICE_NAME }}:latest \
+          -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/organicfreshcoffee/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+          -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/organicfreshcoffee/${{ env.SERVICE_NAME }}:latest \
           .
           
     - name: Push Docker image
       run: |
-        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/auth-server-staging/${{ env.SERVICE_NAME }}:${{ github.sha }}
-        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/auth-server-staging/${{ env.SERVICE_NAME }}:latest
+  docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/organicfreshcoffee/${{ env.SERVICE_NAME }}:${{ github.sha }}
+  docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/organicfreshcoffee/${{ env.SERVICE_NAME }}:latest
         
     - name: Deploy to Cloud Run (Staging)
       run: |
         gcloud run deploy ${{ env.SERVICE_NAME }} \
-          --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/auth-server-staging/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+          --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/organicfreshcoffee/${{ env.SERVICE_NAME }}:${{ github.sha }} \
           --region ${{ env.REGION }} \
           --platform managed \
           --allow-unauthenticated \
@@ -148,19 +148,19 @@ jobs:
     - name: Build Docker image
       run: |
         docker build -f Dockerfile.prod \
-          -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/auth-server/${{ env.SERVICE_NAME }}:${{ github.sha }} \
-          -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/auth-server/${{ env.SERVICE_NAME }}:latest \
+          -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/organicfreshcoffee/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+          -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/organicfreshcoffee/${{ env.SERVICE_NAME }}:latest \
           .
           
     - name: Push Docker image
       run: |
-        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/auth-server/${{ env.SERVICE_NAME }}:${{ github.sha }}
-        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/auth-server/${{ env.SERVICE_NAME }}:latest
+  docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/organicfreshcoffee/${{ env.SERVICE_NAME }}:${{ github.sha }}
+  docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/organicfreshcoffee/${{ env.SERVICE_NAME }}:latest
         
     - name: Deploy to Cloud Run (Production)
       run: |
         gcloud run deploy ${{ env.SERVICE_NAME }} \
-          --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/auth-server/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+          --image ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/organicfreshcoffee/${{ env.SERVICE_NAME }}:${{ github.sha }} \
           --region ${{ env.REGION }} \
           --platform managed \
           --allow-unauthenticated \
