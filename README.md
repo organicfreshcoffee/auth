@@ -56,7 +56,6 @@ GOOGLE_CLOUD_PROJECT=your-gcp-project-id
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/service-account-key.json
 NODE_ENV=development
 PORT=3001
-AUTH_SERVICE_URL=http://localhost:3001
 ```
 
 ## 🐳 Local Development

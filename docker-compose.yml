@@ -20,14 +20,9 @@ services:
       - ${GOOGLE_APPLICATION_CREDENTIALS}:/app/service-account-key.json
     networks:
       - auth-network
-      - /app/.next
-    depends_on:
-      - server
-    networks:
-      - landing-network
     command: npm run dev
 
-volumes:
+
 networks:
   auth-network:
     driver: bridge

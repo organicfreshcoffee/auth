@@ -21,9 +21,3 @@ services:
     networks:
       - auth-network
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}
-    depends_on:
-      - server
-    networks:
-    networks:
-      - auth-network
