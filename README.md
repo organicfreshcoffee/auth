@@ -1,4 +1,4 @@
-# Organic Fresh Coffee Landing Page
+# User Authentication with Firebase
 
 A full-stack web application built with Next.js, Express.js, Firebase Auth, and MongoDB. This project demonstrates a complete authentication flow with user login tracking.
 
