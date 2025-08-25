@@ -16,13 +16,27 @@ const getAllowedOrigins = (): string[] => {
     return [
       process.env.CLIENT_URL || 'https://organicfreshcoffee.com',
       'https://organicfreshcoffee.com',
-      'https://www.organicfreshcoffee.com'
+      'https://api.organicfreshcoffee.com',
+      'https://server.organicfreshcoffee.com',
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:3002',
+      'http://localhost:3003',
+      'http://localhost:3004',
+      'http://localhost:3005'
     ];
   } else if (process.env.NODE_ENV === 'staging') {
     const stagingOrigins = [
       process.env.CLIENT_URL || 'https://staging.organicfreshcoffee.com',
       'https://staging.organicfreshcoffee.com',
-      'https://staging-api.organicfreshcoffee.com'
+      'https://staging-api.organicfreshcoffee.com',
+      'https://staging-server.organicfreshcoffee.com',
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:3002',
+      'http://localhost:3003',
+      'http://localhost:3004',
+      'http://localhost:3005'
     ];
     
     // Add Cloud Run URLs if they exist
