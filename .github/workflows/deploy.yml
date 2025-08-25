@@ -100,7 +100,7 @@ jobs:
           --max-instances 10 \
           --concurrency 1000 \
           --timeout 3600 \
-          --set-env-vars NODE_ENV=staging
+          --set-env-vars NODE_ENV=staging,GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}
 
     - name: Get Cloud Run URL (Staging)
       run: |
@@ -175,7 +175,7 @@ jobs:
           --max-instances 10 \
           --concurrency 1000 \
           --timeout 3600 \
-          --set-env-vars NODE_ENV=production
+          --set-env-vars NODE_ENV=production,GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}
 
     - name: Get Cloud Run URL (Production)
       run: |
