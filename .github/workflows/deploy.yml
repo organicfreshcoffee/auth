@@ -93,7 +93,7 @@ jobs:
           --region ${{ env.REGION }} \
           --platform managed \
           --allow-unauthenticated \
-          --port 3002 \
+          --port 3001 \
           --memory 1Gi \
           --cpu 1 \
           --min-instances 0 \
@@ -168,7 +168,7 @@ jobs:
           --region ${{ env.REGION }} \
           --platform managed \
           --allow-unauthenticated \
-          --port 3002 \
+          --port 3001 \
           --memory 1Gi \
           --cpu 1 \
           --min-instances 0 \
