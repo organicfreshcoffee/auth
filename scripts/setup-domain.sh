@@ -15,13 +15,13 @@ NC='\033[0m' # No Color
 # Configuration
 PROJECT_ID=""
 REGION="us-central1"
-AUTH_SERVICE_NAME="auth-server"
+AUTH_SERVICE_NAME="organicfreshcoffee-auth-server"
 MAIN_DOMAIN="auth.organicfreshcoffee.com"
 STAGING_DOMAIN="staging-auth.organicfreshcoffee.com"
 
 if [ "$1" = "staging" ] || [ "$1" = "--staging" ]; then
     echo -e "${BLUE}Setting up STAGING environment${NC}"
-    AUTH_SERVICE_NAME="auth-server-staging"
+    AUTH_SERVICE_NAME="organicfreshcoffee-auth-server-staging"
     MAIN_DOMAIN="$STAGING_DOMAIN"
 fi
 
